@@ -2353,7 +2353,15 @@ void TupleMaker::initializeTuple(Tuple *&tuple,
   //*************************************************************************
   //*************************************************************************
 
+  tuple->PostS_VR4_Mass = dir.make<TH1F>("PostS_VR4_Mass", ";Mass [GeV];Events / bin", 400, 0, 4000);
+  tuple->PostS_VR5_Mass = dir.make<TH1F>("PostS_VR5_Mass", ";Mass [GeV];Events / bin", 400, 0, 4000);
+  tuple->PostS_VR6_Mass = dir.make<TH1F>("PostS_VR6_Mass", ";Mass [GeV];Events / bin", 400, 0, 4000);
+  tuple->PostS_VR7_Mass = dir.make<TH1F>("PostS_VR7_Mass", ";Mass [GeV];Events / bin", 400, 0, 4000);
+
+
   tuple->PostS_SR1_Mass = dir.make<TH1F>("PostS_SR1_Mass", ";Mass [GeV];Events / bin", 400, 0, 4000);
+
+
   tuple->PostS_SR1_Mass_Pileup_up = dir.make<TH1F>("PostS_SR1_Mass_Pileup_up", ";Mass [GeV];Events / bin", 400, 0, 4000);
   tuple->PostS_SR1_Mass_Pileup_down = dir.make<TH1F>("PostS_SR1_Mass_Pileup_down", ";Mass [GeV];Events / bin", 400, 0, 4000);
   tuple->PostS_SR1_Mass_ProbQNoL1_up = dir.make<TH1F>("PostS_SR1_Mass_ProbQNoL1_up", ";Mass [GeV];Events / bin", 400, 0, 4000);

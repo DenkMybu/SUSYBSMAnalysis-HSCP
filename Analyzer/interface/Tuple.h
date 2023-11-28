@@ -1017,6 +1017,11 @@ struct Tuple {
 
   // VR1: Ias-quantile 50-90% & pT>70 GeV
   TH1F* PostS_VR1_Mass;
+  TH1F* PostS_VR4_Mass;
+  TH1F* PostS_VR5_Mass;
+  TH1F* PostS_VR6_Mass;
+  TH1F* PostS_VR7_Mass;
+
   TH1F* PostS_VR1_Mass_Pileup_up;
   TH1F* PostS_VR1_Mass_Pileup_down;
   TH1F* PostS_VR1_Mass_ProbQNoL1_up;
