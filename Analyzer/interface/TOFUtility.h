@@ -85,6 +85,22 @@ public:
 
   static moduleGeom* get(unsigned int detId) { return static_geomMap[detId]; }
 
+  static int checkDetId(unsigned int detId) {
+    //std::cout << "Checking for the detId " << detId << " in map. Map has : " << static_geomMap.size() << " elements" << std::endl;
+    /*
+    for (const auto& pair : static_geomMap) {
+        std::cout << "DetId: " << pair.first << ", moduleGeom address: " << pair.second << std::endl;
+    }*/
+    auto it = static_geomMap.find(detId);
+    if (it != static_geomMap.end()) {
+      //std::cout << "Found detId " << detId << " in geomMap at position " << std::distance(static_geomMap.begin(), it) << std::endl;
+      return 1;
+    } else {
+        //std::cout << "Did not find this detId from the geomMap, default position is " << std::distance(static_geomMap.begin(), it) << std::endl;
+        return 0; // detId does not exist in geomMap
+    }
+  }
+
   static void loadGeometry(std::string path) {
     moduleGeom::static_geomMap.clear();  //reset the geometry map
 
@@ -103,7 +119,7 @@ public:
     t->SetBranchAddress("length", &lengthV);
     TVector3* thickV = new TVector3();
     t->SetBranchAddress("thick", &thickV);
-
+    std::cout << "Loading geometry map " << path << std::endl; 
     for (unsigned int ientry = 0; ientry < t->GetEntries(); ientry++) {
       t->GetEntry(ientry);
 
@@ -230,6 +246,7 @@ public:
   ////////////////////////////////////////////
 
   void loadTimeOffset(std::string path) {
+    std::cout << "Loading time offsets from " << path << std::endl;
     t0OffsetMap = NULL;
     t0OffsetMapPerRuns.clear();
 
@@ -251,11 +268,13 @@ public:
       if (std::string(pch).find("runs") != std::string::npos) {  //get the list of runs
         while ((pch = strtok(NULL, ","))) {
           sscanf(pch, "%u", &run);
+          std::cout << "Adding run " << run << std::endl;
           t0OffsetMapPerRuns[run] = std::unordered_map<unsigned int, float>();
         }
       } else if (std::string(pch).find("chambers") != std::string::npos) {  //get the list of chambers
         while ((pch = strtok(NULL, ","))) {
           sscanf(pch, "%d", &chamber);
+          //std::cout << "Adding chamber " << chamber << std::endl;
           chambers.push_back(chamber);
         }
       } else if (std::string(pch).find("run") != std::string::npos) {
@@ -264,6 +283,7 @@ public:
         int Index = 0;
         while ((pch = strtok(NULL, ","))) {
           sscanf(pch, "%f", &correction);
+          //std::cout << "Adding correction " << correction << " for run " << run << std::endl;
           t0OffsetMap[chambers[Index]] = correction;
           Index++;
         }
@@ -271,6 +291,7 @@ public:
         printf("Unknown type of line");
       }
     }
+    std::cout << "Successfully loaded all timing offsets" << std::endl;
     fclose(pFile);
   }
 
@@ -278,9 +299,13 @@ public:
 
   void setRun(unsigned int currentRun) {
     std::map<unsigned int, std::unordered_map<unsigned int, float> >::iterator it, itPrev = t0OffsetMapPerRuns.begin();
+    std::cout << "Starting the SetRun function, on the map with size " <<t0OffsetMapPerRuns.size() <<  std::endl;
     for (it = t0OffsetMapPerRuns.begin(); it != t0OffsetMapPerRuns.end(); it++) {
+      //std::cout << "iterator first = " << it->first << " and current run = " << currentRun << std::endl;
+      
       if (it->first > currentRun) {
         t0OffsetMap = &(itPrev->second);
+        std::cout << "Setting t0OFfsetMap = " << &(itPrev->second) << " for run " << currentRun << std::endl;
         return;
       }  //runs are ordered, so the previous iterator correspond to our run
       itPrev = it;
@@ -678,11 +703,21 @@ public:
     std::vector<muonTimingCalculator::TimeMeasurementCSC> tms;
     for (unsigned int ic = 0; ic < cscSegs.size(); ic++) {
       const std::vector<CSCRecHit2D> hits2d = cscSegs[ic]->specificRecHits();
+      unsigned int ct = 1;
       for (std::vector<CSCRecHit2D>::const_iterator hiti = hits2d.begin(); hiti != hits2d.end(); hiti++) {
         muonTimingCalculator::TimeMeasurementCSC thisHit;
 
         TVector3 localPointOnModule;
         moduleGeom* mod = moduleGeom::get(hiti->geographicalId());
+        unsigned int at2 = hiti->geographicalId();
+        int keepGoing2 = moduleGeom::checkDetId(at2);
+        //std::cout << "This module ID returns keepgoing = " << keepGoing2 << std::endl;
+        if(keepGoing2 == 0){
+            std::cout << "Module detID = " << at2 << " was not found in the list, skipping this computation" << std::endl;
+            ct +=1;
+            continue;
+        }
+        
         if (mod->propagateParametersOnPlane(posp, momv, localPointOnModule)) {
           thisHit.distIP = mod->toGlobal(localPointOnModule).Mag();
         } else {
@@ -707,8 +742,8 @@ public:
           // if (CORRECTION_LEVEL == 2)thisHit.timeCorr -= 0;
           tms.push_back(thisHit);
 
-          //  cout << ic<<" t0Offset       (cscSegs[ic]->cscDetId().rawId()) = " << t0Offset       (cscSegs[ic]->cscDetId().rawId()) << endl;
-          //  cout << ic << "t0OffsetChamber(cscSegs[ic]->cscDetId().rawId()) = " << t0OffsetChamber(cscSegs[ic]->cscDetId().rawId()) << endl;
+          std::cout << ic<<" t0Offset       (cscSegs[ic]->cscDetId().rawId()) = " << t0Offset       (cscSegs[ic]->cscDetId().rawId()) << endl;
+          std::cout << ic << "t0OffsetChamber(cscSegs[ic]->cscDetId().rawId()) = " << t0OffsetChamber(cscSegs[ic]->cscDetId().rawId()) << endl;
         }
 
         if (UseWireTime_) {
@@ -731,6 +766,7 @@ public:
           tms.push_back(thisHit);
         }
       }  // rechit
+      ct+=1;
     }    //csc segment
 
     bool modified = false;
@@ -807,6 +843,8 @@ public:
   }  // end of member function
 
   void addDTMeasurements(reco::MuonRef& muon, int CORRECTION_LEVEL, bool debug = false) {
+    std::cout <<"Debug is = " << debug <<std::endl;
+    std::cout <<"Adding DT measurement" << std::endl;
     reco::TrackRef muonTrack = muon->standAloneMuon();
 
     math::XYZPoint pos = muonTrack->innerPosition();
@@ -821,6 +859,7 @@ public:
     TVector3 momv(mom.x(), mom.y(), mom.z());
 
     std::vector<muonTimingCalculator::TimeMeasurementDT> tms;
+    std::cout <<"Creating collection on time measurements for the track of size : " << tms.size() << std::endl;
     // create a collection on TimeMeasurements for the track
     for (std::vector<const DTRecSegment4D*>::iterator rechit = dtSegs.begin(); rechit != dtSegs.end(); ++rechit) {
       // Create the ChamberId
@@ -854,15 +893,32 @@ public:
         const std::vector<DTRecHit1D> hits1d = segm->specificRecHits();
 
         // store all the hits from the segment
+        std::cout <<"Storing hits from the segment, beginning loop" << std::endl;
+        int iteration = 1;
         for (std::vector<DTRecHit1D>::const_iterator hiti = hits1d.begin(); hiti != hits1d.end(); hiti++) {
+          std::cout <<"Iteration number #" << iteration <<std::endl;
+          unsigned int at = hiti->geographicalId();
+          int keepGoing = moduleGeom::checkDetId(at);
+          if(keepGoing == 0){
+              std::cout << "Module detID = " << at << " was not found in the list, skipping this computation" << std::endl;
+              iteration +=1;
+              continue;
+          }
+          std::cout << "Geographical ID of the hit : " << at << std::endl;
           moduleGeom* dtcell = moduleGeom::get(hiti->geographicalId());
+          //std::cout << "dtCell = " << *dtcell << std::endl;
+          //std::cout << "Dt cell TP : " << dtcell->TP <<std::endl;
           muonTimingCalculator::TimeMeasurementDT thisHit;
+          std::cout <<"After muonTimngCalculator timemeasurement DT #" << iteration <<std::endl;
 
           double dist;
-          double dist_straight =
-              dtcell
-                  ->toGlobal(TVector3(hiti->localPosition().x(), hiti->localPosition().y(), hiti->localPosition().z()))
-                  .Mag();
+          std::cout << "Computing dist_straigth from x position = " << hiti->localPosition().x() << " y position = " << hiti->localPosition().y() << " , z position = " << hiti->localPosition().z() << std::endl;
+          TVector3 test(hiti->localPosition().x(), hiti->localPosition().y(), hiti->localPosition().z());
+          std::cout << "Created TVector3 with magnitude " << test.Mag() << std::endl;
+
+          double dist_straight = dtcell->toGlobal(TVector3(hiti->localPosition().x(), hiti->localPosition().y(), hiti->localPosition().z())).Mag();
+           
+          std::cout <<"After dist_straight" << iteration <<std::endl;
 
           TVector3 localPointOnModule;
           if (dtcell->propagateParametersOnPlane(posp, momv, localPointOnModule)) {
@@ -904,6 +960,7 @@ public:
           thisHit.station = station;
 
           //if to use the offset correction
+          std::cout <<"Do we use the offset correction ? " << std::endl;
 
           if (useSegmentT0_ && segm->ist0Valid())
             thisHit.timeCorr = segm->t0();
@@ -1259,15 +1316,19 @@ public:
     tmSeq.clear();
 
     matchCSC(*muon->standAloneMuon(), CSCSegmentColl);
-
+    std::cout << "matched CSC" << std::endl;
     matchDT(*muon->standAloneMuon(), DTCSegmentColl);
+    std::cout << "matched DT" << std::endl;
 
     addDTMeasurements(muon, CORRECTION_LEVEL, debug);
+    std::cout << "added DT measurements for muon, correction level = " << CORRECTION_LEVEL << std::endl;
 
     addCSCMeasurements(muon, CORRECTION_LEVEL);
+    std::cout << "added CSC measurements for muon, correction level = " << CORRECTION_LEVEL << std::endl;
 
     dtTOF = getTimeExtra(5.0, muonTimingCalculator::TimeMeasurementType::DT, debug);
     cscTOF = getTimeExtra(9.0, muonTimingCalculator::TimeMeasurementType::CSC);
     combinedTOF = getTimeExtra(10000.0);
+
   }
 };

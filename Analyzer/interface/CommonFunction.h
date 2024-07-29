@@ -1872,6 +1872,38 @@ float GetIck(float I, float dEdxK, float dEdxC) {
   return (I - C) / K;
 }
 
+//Get error on mass beta 
+float errorMassBetaWithP(float p, float beta, float sigma_beta,float sigma_p)
+{
+    float gamma = 1 / sqrt(1 - beta * beta);
+    float dmdbeta = (-p*1.0) / (beta*beta * sqrt(1-(beta*beta)));
+    float dmdp = (sqrt(1-(beta*beta))/beta);
+    float sigma_mass = sqrt( (dmdbeta*dmdbeta*sigma_beta*sigma_beta) + (dmdp*dmdp*sigma_p*sigma_p)  );
+    return sigma_mass;
+}
+
+//Get error on mass dedx
+float errorMassWithP(float P,float ih,float k,float c,float sigma_dEdx,float sigmaP){
+    if (ih-c < 0) return -1;
+    float ErrMass = sqrt( ( (P*P*sigma_dEdx*sigma_dEdx) + (4*(ih-c)*(ih-c)*sigmaP*sigmaP) )/(4*(ih-c)*k) );
+    return ErrMass;
+}
+
+//Compute combined mass from Beta and Dedx with weights based on error on both masses
+float GetCombMassWeighted(float mBeta, float mDeDx,float stdBeta, float stdDeDx)
+{
+    if(stdBeta <= 0) return -1;
+    if(mBeta <= 0) return -1;
+    if(mDeDx <= 0) return -1;
+    if(stdDeDx <= 0) return -1;
+    float weight1 = 1.0 / (stdBeta*stdBeta);
+    float weight2 = 1.0 / (stdDeDx*stdDeDx);
+    float newMass = ( (mBeta * weight1) + (mDeDx*weight2) ) / (weight1 + weight2);
+    return newMass;
+}
+
+
+
 // compute mass out of a beta and momentum value
 float GetMassFromBeta(float P, float beta) {
   float gamma = 1 / sqrt(1 - beta * beta);
